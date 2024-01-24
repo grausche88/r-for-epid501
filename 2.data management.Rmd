@@ -1,0 +1,641 @@
+---
+title: "Data management examples using the bccc dataset"
+author: "Garth Rauscher"
+date: "`r Sys.Date()`"
+---
+
+Here are some useful resources:
+
+
+R for applied epidemiology and public health: The Epidemiologist R Handbook
+<https://epirhandbook.com/en/index.html>
+
+Each time you start a new R/RStudio session, open and run: 
+"EPID501/1.installing and loading packages" first to load all the required packages. Once you have all of the packages loaded, you might ask, "where are all of my installed R packages stored on my hard drive?" 
+
+```{r}
+
+# what is my home or working directory?
+R.home(component = "home")
+path.expand("~")
+
+# where are all of my installed R packages stored on my hard drive?" 
+.libPaths() 
+
+```
+
+
+## Import your data
+
+The first thing we usually need to do is get your data into a format readable by R, in a dataset known either as a "data frame" or a "tibble" (from the tidyverse package), both having the file extension .Rda.
+
+<https://tibble.tidyverse.org/>
+
+A tibble, or tbl_df, is a modern reimagining of the data.frame, keeping what time has proven to be effective, and throwing out what is not.
+
+We can import the course Dataset into a dataframe (.Rda) from different starting formats, by:
+using read.csv (base function) to import utf csv files
+using read_dta (haven package) to import stata version 12 or older datasets
+using read_sas (haven package) to import SAS  .sas7bdat datasets
+using read_sav (haven package) to import SPSS .sav datasets
+
+<https://haven.tidyverse.org/index.html>
+
+
+You will typically need to read the data into and R dataset each tme you start up R
+
+```{r}
+
+# Let's read the Stata class dataset named bccc.dta (stored in the Data folder) into an R Data Frame
+
+bccc  <- read_dta("data/bccc.dta")
+
+
+```
+
+
+
+```{r}
+
+# There are many things we can do to examine aspects of your data frame:
+
+dim(bccc) # Number of observations and variables
+str(bccc) # proc contents
+
+typeof(bccc)                # Data Frames are a type of list in R (not that important to know)
+class(bccc)                 # a data frame or tbl or tbl_df )
+names(bccc)                 # lists variable names
+sapply(bccc, class)         # lists variable names and whether they are numeric or character
+sapply(bccc, attributes)    # lists variable names, labels and formats for each variable
+attributes(bccc)            # lists dataset attributes (class, notes, row.names, variable names)
+summary(bccc)               # proc means
+head(bccc)                  # print the first few observations
+
+# You can save the bccc.Rda dataframe so that you can open it in your next session (or you can just import it again from state using read_dta which is what I do).
+
+save(bccc,file="data/bccc.Rda")
+
+```
+
+
+
+Two ways you can keep a subset of variables (columns) in your data frame.
+
+In this example, I create a new data frame (bccc2) that contains a subset of the variables from bccc.
+
+```{r}
+
+dim(bccc)  # before
+
+bccc2 <- select(bccc, id,  ethnicity, age, lackprivate, mamhistory ,symptomatic)
+
+dim(bccc2) # after
+str(bccc2) # after
+summary(bccc2)
+head(bccc2)
+
+ 
+```
+
+
+```{r}
+
+# OR (another way to create a subset of variables)
+
+# create an object with c() naming all the variables to be kept
+dim(bccc)  # before
+keeps <- c("id","ethnicity","age","lackprivate","mamhistory","symptomatic")
+bccc2<-bccc[ , !(names(bccc) %in% keeps)]
+dim(bccc2) # after
+str(bccc2) # after
+
+```
+
+
+
+Related topic: Use select() to examine distributions and attributes for a subset of variables from your data frame.
+
+<https://sparkbyexamples.com/r-programming/r-select-function-from-dplyr/>
+
+
+```{r}
+
+    str(select(bccc,"id","ethnicity","age","lackprivate","mamhistory","symptomatic"))  # proc contents; 
+summary(select(bccc,"id","ethnicity","age","lackprivate","mamhistory","symptomatic"))  # proc means; 
+  print(select(bccc,"id","ethnicity","age","lackprivate","mamhistory","symptomatic"))  # proc print; 
+
+```
+
+
+How to drop variables from a data frame (rather than keep variables)
+
+First, obtain a list of the variable names for copying and pasting
+
+```{r}
+names(bccc) 
+```
+
+# "id", "astage", "fnlwt", "age", "age3", "ethnicity", "minority", "incord", "inc", "education", "edu", "disadvantage", "affluence", "muaarea3", "napbc_present", "ncobc_present", "bicoe_present", "ds_present", "rt_recommend", "ct_recommend", "ht_recommend", "insurecat", "mam5yr", "mamhistory", "lastroutine", "lastcbe", "lastmam", "lackprivate", "noregular", "symptomatic", "erprneg", "maxgrade", "pstages", "laterstage", "sumlacktrust", "misconceptions sumcomorbidity", "nlivebirths", "nulliparous", "agefirstbirth", "agelastbirth", "fhxcat", "bmi", "bmicdc_", "deadbc", "blackwhite", "hilowgrade"
+
+
+Create an object using c() that contains the names of the variables we want to drop I named it "drops".
+Then copy the dataframe, excluding the variables listed in "drops" using !names()
+
+```{r }
+
+dim(bccc) # before
+
+drops <- c("astage", "fnlwt", "age3", "minority", "incord", "inc", "education", "edu", "disadvantage", "affluence", "muaarea3", "napbc_present", "ncobc_present", "bicoe_present", "ds_present", "rt_recommend", "ct_recommend", "ht_recommend", "insurecat", "mam5yr", "lastroutine", "lastcbe", "lastmam", "noregular", "erprneg", "maxgrade", "pstages", "laterstage", "sumlacktrust", "misconceptions", "sumcomorbidity", "nlivebirths", "nulliparous", "agefirstbirth", "agelastbirth", "fhxcat", "bmi", "bmicdc_", "deadbc", "blackwhite", "hilowgrade")
+
+bccc2<-bccc[ , !(names(bccc) %in% drops)]
+
+dim(bccc2) # after
+str(bccc2) # after
+
+```
+
+
+Alteratively, you can drop the same variables using select(-c())
+
+```{r }
+bccc %>% 
+  select(-c(astage, fnlwt, age3, minority, incord, inc, education, edu, disadvantage, affluence, muaarea3, napbc_present, ncobc_present, bicoe_present, ds_present, rt_recommend, ct_recommend, ht_recommend, insurecat, mam5yr, lastroutine, lastcbe, lastmam, noregular, erprneg, maxgrade, pstages, laterstage, sumlacktrust, misconceptions, sumcomorbidity, nlivebirths, nulliparous, agefirstbirth, agelastbirth, fhxcat, bmi, bmicdc_, deadbc, blackwhite, hilowgrade)) %>%   
+names()
+
+```
+
+
+## Reorder variables in your data frame
+
+You can use select() to reorder variables by listing those you want at the front of the dataset first, followed by everything() to tell R to include all the other variables in their original order.
+
+```{r }
+
+str(bccc)  # before
+
+bccc_reorder <- select(bccc, id,  ethnicity, age, lackprivate, mamhistory ,symptomatic)
+
+str(bccc_reorder) # after
+
+```
+
+
+Rename variables- lets renames incord to the more familiar "income", pstages to the more recognizeable "pathstage", and remove the "_" suffix from the variable name "bmicdc_" 
+
+```{r}
+
+bccc_rename <-
+  bccc %>%
+  rename(
+    income=incord,
+    pathstage=pstages,
+    bmicdc = bmicdc_
+    )
+
+str(bccc_rename)
+
+```
+
+
+
+Nominal categorical variables have to be converted or copied to so-called factor variables in order to conduct certain analysis with them. Essentially, converting a variable to a factor creates indicator variables based on the nominal variable.
+
+A nominal categorical variable that is defined as numeric must first be converted to a character variable before it can be converted to a factor variable. In this example, lasmam is a numeric variable and I want to be able to treat is as a factor variables in some analyses.
+
+```{r }
+str(bccc$lastmam) # numeric
+
+# convert to character
+bccc$lastmam_c <- as.character(bccc$lastmam) 
+str(bccc$lastmam_c) # character
+
+# convert to factor
+bccc$lastmam_f <- as.factor(bccc$lastmam)
+str(bccc$lastmam_f)  # factor
+```  
+
+
+
+
+  
+  
+Drop and keep observations (rows)
+
+
+Drop observations with specific values of id (1 and 2)
+
+```{r}
+
+dim(bccc)
+bccc2<-bccc[!(bccc$id == 1 | bccc$id == 2),]   # uses the OR operator
+dim(bccc2)
+
+```
+
+
+Drop observations with specific values of id (1 and 2), this time by subsetting to all values of id not equal to 1 or 2
+
+```{r}
+
+dim(bccc)
+bccc2subset(bccc, bccc$id !=1 & bccc$id !=2)  # uses the AND operator
+dim(bccc2)
+
+```
+
+
+Either method is fine
+
+
+
+Keep observations where age >50
+
+```{r}
+
+# before
+dim(bccc)
+table(bccc$age)
+summary(bccc$age)
+
+bccc2<-subset(bccc, bccc$age>50)
+
+# after
+dim(bccc2)
+table(bccc2$age)
+summary(bccc2$age)
+
+
+```
+
+Keep observations where age <= 50
+
+```{r}
+
+
+# before
+dim(bccc)
+table(bccc$age)
+summary(bccc$age)
+
+bccc2<-subset(bccc, bccc$age <= 50)
+
+# after
+dim(bccc2)
+table(bccc2$age)
+summary(bccc2$age)
+
+```
+
+
+
+
+Drop variables and observations in sequence, two ways.
+
+The first way involves using select() to drop variables and subset() to drop observations.
+
+```{r }
+
+dim(bccc) 
+
+# subset to age<=50 & education>12       # start with dataframe bccc -> a -> final dataset b
+a<-select(bccc, age, education)
+b<-subset(a, age <= 50 & education>12)
+dim(b)
+summary(b)
+
+```
+
+The second way involves piping together the select() and subset() functions with the pipe function %\>%.
+
+```{r }
+
+     
+# subset to age<50 & education>12
+
+bccc2<-bccc %>%
+  filter(age <= 50 & education>12) %>%
+  select(id, ethnicity, age, education)
+
+dim(bccc2)
+summary(bccc2)
+
+```
+
+
+
+
+Now, let's keep observations == age 50 & education == 12  
+
+```{r}
+
+
+dim(bccc)      
+table(bccc$age, bccc$education) # before
+
+# subset to age<50 & education>12
+
+bccc2<-bccc %>%
+  filter(age == 50 & education == 12) %>%
+  select(id, age, education)
+
+dim(bccc2)
+table(bccc2$age, bccc2$education) # after
+
+
+
+
+```
+
+
+
+
+
+## Missing Data and recoding
+
+In this example: values of pstages that represent in-situ stage at diagnosis (pstages=0) are recoded to the value 9.
+
+Recoding a variable using mutate()
+Here we recode pstages values of 0 to 9, and leave the other values as is.
+
+```{r}
+
+# recode 0 to 9
+table(bccc$pstages) # before
+a <- bccc %>% mutate(pstages = if_else(pstages == 0, 9, pstages))
+
+table(a$pstages)    # after
+
+```
+
+
+Recoding a variable using mutate()
+Here we recode values of 0 for pstages to the missing value NA, and leave the other values as is.
+
+```{r}
+
+# recode 0 to NA
+b <- bccc %>% mutate(pstages = if_else(pstages == 0, NA, pstages))
+
+table(bccc$pstages) # before
+table(b$pstages)    # after
+
+```
+
+## Recoding invalid values to missing values (NA)
+
+The three variables **lastroutine, lastmam, lastcbe** in the data frame "bccc" have their values of 4 and 9 recoded to NA
+
+```{r }
+
+summary(select(bccc,lastroutine,lastmam,lastcbe))  # before recoding
+
+unique(bccc$lastroutine)
+unique(bccc$lastmam)
+unique(bccc$lastcbe)
+
+# recode 4 and 9 to NA
+bccc2<-bccc # copy original dataset into bccc2 and keep using bccc2 throughout this block of code
+bccc2 <-  mutate_at(bccc2, vars(lastroutine,lastmam,lastcbe), ~ na_if(.,9))
+bccc2 <-  mutate_at(bccc2, vars(lastroutine,lastmam,lastcbe), ~ na_if(.,4))
+
+
+# Three different ways to check the recoded values
+
+table(select(bccc2,lastroutine,lastmam,lastcbe)) # after
+
+# after
+
+table(bccc2$lastroutine)
+table(bccc2$lastmam) 
+table(bccc2$lastcbe) 
+
+unique(bccc2$lastroutine)
+unique(bccc2$lastmam)
+unique(bccc2$lastcbe)
+
+
+
+```
+
+
+
+More examples using the dplyr package
+
+https://cran.r-project.org/web/packages/dplyr/vignettes/dplyr.html
+
+```{r }
+bccc  # a tibble 989 × 50
+
+```
+
+Filter or select observations (rows)
+```{r }
+# before
+table(bccc$ethnicity)
+table(bccc$lackprivate) 
+
+
+a<-bccc %>% filter(ethnicity == "1", lackprivate=="0")
+
+# after
+table(a$ethnicity)
+table(a$lackprivate) 
+
+
+
+```
+
+
+Sorting rows with arrange()
+
+```{r }
+a<-bccc %>% arrange(ethnicity, age)
+a
+```
+
+
+Select columns with select()
+
+```{r }
+a<-bccc %>% select(ethnicity, age)
+str(a)
+```
+
+
+Select and rename variables
+
+```{r }
+a<-bccc %>% select(pathstage=pstages, income=incord)
+str(a)
+```
+
+
+Rename variables without selecting
+
+```{r }
+a<-bccc %>% rename(pathstage=pstages, income=incord)
+str(a)
+```
+
+
+Change column order with relocate()
+
+```{r }
+a<-bccc %>% relocate(deadbc)
+str(a)
+```
+
+
+You can add a column using mutate:
+
+```{r }
+
+# create a variable for decade of age
+a <-bccc %>% mutate(decade=age/10) 
+a$decade <-floor(a$decade)
+
+# run error check to compare old to new values, using the freqtables package
+table(a$decade,a$age)
+
+```
+
+
+
+
+## Define a categorical variable from a continuous variable
+
+```{r}
+
+bccc2 <- 
+  mutate(
+    bccc,
+    age3 = case_when(
+      age >= 18 & age<=49 ~ 1,
+      age >= 50 & age<=64 ~ 2,
+      age >= 65 & age<=80 ~ 3,
+      TRUE ~ NA
+      )
+    )
+
+# run error check to compare old to new values, using freqtables package
+bccc2 %>%
+freq_table(age3, age) %>%
+freq_format(recipe = "n", name = NA, digits = NA) %>%
+select(1,2,3) # select the bare minimum for checking purposes.
+
+```
+
+
+Standardize a variable to have a mean of 0 ad a SD of 1
+
+```{r}
+# age normalized to mean of ALL rows - use the mean and sd fuctions of base R
+
+bccc$age_z= (bccc$age-mean(bccc$age)) /sd(bccc$age)
+
+mean(bccc$age_z)
+sd(bccc$age_z)
+
+```
+
+Another way to check the distribution of your new variable using the procs package
+
+```{r}
+
+# check result (we will review the procs package later)
+
+proc_means(bccc,
+  var = v(age,age_z),
+  stats = c("n", "mean", "std", "min", "max"),
+  output = NULL,
+  by = NULL,
+  class = NULL,
+  options = NULL,
+  titles = NULL
+)
+```
+
+
+How to count and list distinct values for a variable
+
+There are a number of ways to do this. The two methods below take the variable age3 from the data frame bccc and counts/lists the number of distinct values.
+
+```{r }
+
+# list distinct values
+sqldf("select distinct(age3) from bccc")
+
+# number of distinct values
+bccc %>% summarise(distinct_values = n_distinct(age3))
+
+
+```
+
+
+## Sorting and merging
+
+Here I subset bccc into 2 data frames (**a** and **b**) with different variables then merge the variables back together on "id" (this variabe must be in oth datasets for the merge to work).
+
+```{r}
+
+a<-select(bccc,id,age,age3,ethnicity)
+b<-select(bccc,id,edu,inc)
+
+
+# sort on the by variable id in increasing value (default is decreasing)
+a<-(a[order(a$id, decreasing = FALSE), ])
+b<-(b[order(b$id, decreasing = FALSE), ])
+
+# merge on the by variable GEOID
+c <- merge(a, b, by.x = "id", by.y = "id") # by.x refers to 1st dataframe listed, by.y to the second one.
+
+str(c)
+
+```
+
+
+How to check if there are any duplicates on all variables in your dataset
+
+```{r}
+
+bccc %>%  distinct()  #987 distinct-no duplicate observations
+
+```
+
+
+De-duplication of observations with identical values on specific variables.
+In this example I want to de-duplicate by age. 
+This is just an example.
+I create the object "nodups_by_age" (I could have named it "snoopy") and use distinct()
+
+```{r}
+
+# keep one observation for each value of age
+nodups_by_age<-bccc %>% distinct(age, .keep_all = TRUE)
+
+dim(nodups_by_age)  # 54 unique values of age
+table(nodups_by_age$age) # 1 onbs for each value of age
+
+```
+
+
+Another way to do this
+
+```{r}
+
+# keep one observation for each value of age
+nodups_by_age<-bccc %>% distinct(age, .keep_all = TRUE)
+
+
+# two ways to check your result
+
+sqldf("select distinct(age) from nodups_by_age")
+
+table(nodups_by_age$age)
+
+# how many distinct values of age are there?
+bccc %>% summarise(distinct_values = n_distinct(age)) # Answer: 54
+
+```
+
+

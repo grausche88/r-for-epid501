@@ -1,0 +1,163 @@
+---
+title: "Standardization"
+author: "Rauscher, Garth H"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+R for applied epidemiology and public health: The Epidemiologist R Handbook
+<https://epirhandbook.com/en/index.html>
+
+Getting started in R for Stata users
+<https://dss.princeton.edu/training/RStata.pdf>
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+R.Version()
+```
+
+
+Import your data
+
+The first thing we usually need to do is get your data into a format readable by R, known as a data frame and having the extension .Rda.
+
+Below we import the course Stata Dataset into R using **read_dta** (using the **haven** package)
+
+
+
+```{r }
+
+# read th Stata dataset named bccc.dta (stored in the Data folder) into an R Data Frame
+bccc <- read_dta("data/bccc.dta")
+
+# Number of observations and variables
+dim(bccsv)
+
+# proc contents
+str(bccc)
+
+# proc means
+summary(bccc)
+
+# print the first few observations
+head(bccc)
+
+
+# save the bccc.Rda dataframe
+save(bccc,file="data/bccc.Rda")
+
+
+```
+ 
+
+
+Stratified tables with counts and percentages and tests but no pooled measures of association 
+
+
+janitor package for stratified 2x2 tables (counts only)
+
+tabyl(exposure, outcome, stratification variable)
+
+like proc freq tables stratavar*exposure*outcome
+
+```{r}
+
+# stratified 2x2 tables
+bccc %>% tabyl(lackprivate, symptomatic,age3)   
+
+# stratified 2x2 tables, adorned
+bccc %>% tabyl(lackprivate, symptomatic,age3) %>%  
+    adorn_percentages(denominator = "row")    %>% 
+    adorn_pct_formatting(digits = 0)          %>% 
+    adorn_title(row_name = "lackprivate",col_name = "symptomatic")
+
+# Chi-squared test of association
+age_by_outcome <- bccc  %>% 
+  tabyl(age3, symptomatic, show_na = FALSE) 
+chisq.test(age_by_outcome)
+
+```
+
+
+
+ 
+The risks package
+Stratified tables with counts and percentages and tests AND pooled measures neasures for RD and RR !!!!!
+https://rdrr.io/github/stopsack/risks/man/rr_rd_mantel_haenszel.html
+
+ 
+```{r}
+library(risks)
+
+bccc2<-dplyr::select(bccc, age3, lackprivate, symptomatic)
+
+rr_rd_mantel_haenszel( bccc2, lackprivate, symptomatic, age3, estimand=c("rr"), conf.level=0.95 )
+rr_rd_mantel_haenszel( bccc2, lackprivate, symptomatic, age3, estimand=c("rd"), conf.level=0.95 )
+
+```
+
+
+
+epi.2by2
+
+Computes summary measures of risk and a chi-squared test for difference in the observed proportions from count data presented in a 2by2 table. With multiplevstrata the function returns crude  and Mantel-Haenszel adjusted measures of association and chi-squared tests of homogeneity.
+
+<https://rdrr.io/cran/epiR/>
+<https://search.r-project.org/CRAN/refmans/epiR/html/epi.2by2.html>
+<https://github.com/cran/epiR/blob/master/R/epi.2by2.R>
+
+epi.2by2
+
+Computes several measures of association
+
+Arguments
+dat        - a vector of length four, an object of class table or an object of class grouped_df from package dplyr 
+             containing the individual cell frequencies (see below).
+method     - a character string indicating the study design on which the tabular data has been based. Options are 
+             cohort.count, cohort.time, case.control, or cross.sectional. Based on the study design specified by the user,  
+             appropriate measures of association, measures of effect in the exposed and measures of effect in the population 
+             are returned by the function.
+digits     - scalar, number of digits to be reported for print output. Must be an integer of either 2, 3 or 4.
+conf.level - magnitude of the returned confidence intervals. Must be a single number between 0 and 1.
+units      - multiplier for prevalence and incidence (risk or rate) estimates.
+interpret  - logical. If TRUE interpretive statements are appended to the printepi.2by2 object.
+outcome    - a character string indicating how the outcome variable is represented in the contingency table. Options   
+             are as.columns (outcome as columns) or as.rows (outcome as rows).
+x, object  - an object of class epi.2by2.
+
+
+Unfortunately I could not get epi.2by2 to run because it could not locate the dependency, "zexact"
+
+```{r }
+library(epiR)
+library(spatstat.geom)
+
+dim(bccc)
+
+
+df<-bccc %>% filter(ethnicity==1) 
+
+table(df$lackprivate, df$symptomatic) #obtain a,b,c,d
+
+
+## Lackprivate=1 (non, sym) 24,14  (a,b)
+## Lackprivate=0 (non, sym) 137,222 (c,d) 
+
+## Outcome variable (FUS) as columns:
+dat <- c(24,14,137,222) # a,b,c,d
+# View the data in the usual 2 by 2 table format:
+matrix(dat, nrow = 2, byrow = TRUE)
+
+epi.2by2(dat = dat, method = "cross.sectional", conf.level = 0.95, units = 1, 
+   interpret = FALSE, outcome = "as.columns")
+
+epi.2by2(dat = dat, method = "cohort.count", conf.level = 0.95, units = 1, 
+   interpret = FALSE, outcome = "as.columns")
+
+ 
+```
+

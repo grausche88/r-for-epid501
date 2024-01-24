@@ -1,0 +1,34 @@
+---
+title: "packages"
+author: "Garth Rauscher"
+format: html
+editor: source
+---
+
+<http://tinyurl.com/nezswj6s>
+R is a statistical software made up of many user-written packages. The base version of R that is downloaded allows the user to get started in R, but anyone performing data analysis will quickly exhaust the capabilities of base R and need to install additional packages.  
+
+Each time you start a ew R/RStudio session, run this program first to load all the required packages
+
+The "ipak" (i=install, pak = packages) function below enables you to install and load multiple R packages. It checks to see if packages are installed, install them if they are not, then loads them into the R session.
+
+```{r}
+
+#run this block of code
+
+ipak <- function(pkg){
+    new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+    if (length(new.pkg)) 
+        install.packages(new.pkg, dependencies = TRUE)
+    sapply(pkg, require, character.only = TRUE)
+}
+
+# usage
+packages <- c("checkmate","crosstable","dplyr","ellipsis","epiR","esquisse","estimatr","expss","dplyr","flextable","forcats","freqtables","gapminder","grates","glue","gt","gtsummary","haven","here","installr","janitor","lifecycle","labelled","lmtest","lubridate","magrittr","margins","mediation","medflex","misty","nortest","officer","openxlsx","plm","plyr","popEpi","procs","purrr","rio","risks","rlang","sandwich","spatstat.geom","sgpv","sqldf","stringr","survival","tidyselect","tidyverse","tidyr","tidylog","tibble","renv","rstatix")
+ipak(packages)
+
+
+```
+
+
+

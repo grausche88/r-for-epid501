@@ -1,0 +1,512 @@
+---
+title: "Tables"
+author: "Garth Rauscher"
+date: "`r Sys.Date()`"
+format: html
+---
+
+
+R for applied epidemiology and public health: The Epidemiologist R Handbook
+<https://epirhandbook.com/en/index.html>
+
+
+
+## Import your data
+
+The first thing we usually need to do is get your data into a format readable by R, known as a data frame and having the extension .Rda.
+
+Below we import the course Stata Dataset into R using **read_dta** (using the **haven** package)
+
+```{r}
+
+# read th Stata dataset named bccc.dta (stored in the Data folder) into an R Data Frame
+bccc <- read_dta("data/bccc.dta")
+
+# Number of observations and variables
+dim(bccc)
+
+# proc contents --  your dataset is a tibble which is a type of data frame. usually tibles and data frames are compatable
+str(bccc)
+
+# proc means
+summary(bccc)
+
+# print the first few observations
+head(bccc)
+
+
+```
+ 
+ 
+ 
+ 
+#------------------------------------------------------------------------------#
+# THE CROSS_CASES BASE R FUNCTION IS AN EXCELLENT WAY TO GET PUBLICATION-
+# QUALITY TABLES INTO MS EXCEL
+#------------------------------------------------------------------------------#
+
+
+## Using the **cross_cases** base R function to create tables then export them to excel
+
+<https://search.r-project.org/CRAN/refmans/expss/html/cross_cases.html>
+
+## Here is an example of a Table 1 of risk factors separately by race.ethcnity (column percentages)
+
+```{r}
+
+# select variables in the order you want them in the table
+
+bccc2<-(select(bccc, age3, ethnicity, edu, inc, insurecat, lastcbe))
+
+# labels must be created in the same order as the variables appear in the data frame
+
+# check the order of variables
+
+names(bccc2)
+
+#order the labels the same as the variables
+
+my_labels <- c(
+               age3 = "Age(<50, 50-64, 65+)", 
+               ethnicity="Ethnicity (NHW, NHB, Hispanic)",
+               edu = "Edu(<HS, HS,>HS)",
+               inc = "Income(<20,000, 20,000+)",
+               insurecat="Insurance (None, Public, Private)",
+               lastcbe="Last CBE (<1,<2,>2,Never)"
+               )
+my_labels 
+
+# add the labels to the variables
+
+bccc2 <- set_variable_labels(bccc2, .labels = my_labels)
+
+# create the table with column percentages using cross_cpct
+
+table1 = bccc2 %>% 
+    cross_cpct(
+        cell_vars = list( total(),  age3, edu, inc, insurecat,lastcbe),
+        col_vars = list(ethnicity, total())
+    )  
+
+table1
+
+#setup an empty workbook with an empty worksheet
+
+wb = createWorkbook()
+sh = addWorksheet(wb, "Table1")
+
+# Export the table into the worksheet in the workbook.
+xl_write(table1, wb, sh)
+
+# Save the workbook as an xlsx file named tables that I can add worksheets to.
+saveWorkbook(wb, "tables.xlsx", overwrite = TRUE)
+
+```
+
+
+
+
+## Another Example of Using the **cross_cases** base R function to create tables then export them to excel
+
+<https://search.r-project.org/CRAN/refmans/expss/html/cross_cases.html>
+
+## Here is an example of a Table 2 of risk factors and associations with an outcome (erprneg) (row percentages)
+
+```{r}
+
+# select variables in the order you wnt them in the table
+
+bccc2<-(select(bccc, ethnicity, age3, edu, inc, insurecat, lastcbe, erprneg ))
+
+# labels must be created in the same order as the variables appear in the data frame
+
+# check the order of variables
+names(bccc2)
+
+#order the labels the same as the variables
+my_labels <- c(
+               ethnicity="Ethnicity (NHW, NHB, Hispanic)",
+               age3 = "Age(<50, 50-64, 65+)", 
+               edu = "Edu(<HS, HS,>HS)",
+               inc = "Income(<20,000, 20,000+)",
+               insurecat="Insurance (None, Public, Private)",
+               lastcbe="Last CBE (<1,<2,>2,Never)",
+               erprneg="Er/PR Negative BC"
+               )
+my_labels 
+
+# add the labels to the variables
+bccc2 <- set_variable_labels(bccc2, .labels = my_labels)
+
+# create the table with row percentages using cross_rpct
+table2 = bccc2 %>% 
+    cross_rpct(
+        cell_vars = list( total(), ethnicity, age3, edu, inc, insurecat,lastcbe),
+        col_vars = list(erprneg, total()),
+        total_row_position = c("none")
+    )  
+
+table2
+
+#setup an empty worksheet
+sh = addWorksheet(wb, "Table2")
+
+# Save the table in a different sheet within the same workbook where you saved table1.
+# Export the table into the worksheet in the workbook.
+xl_write(table2, wb, sh)
+saveWorkbook(wb, "tables.xlsx", overwrite = TRUE)
+
+```
+
+
+
+
+
+
+
+#------------------------------------------------------------------------------#
+# THE PROCS PACKAGE IS A DECENT WAY TO GET R TO REPRODUCE THE RESULTS FROM
+# SAS PROC MEANS AND PROC FREQ
+#------------------------------------------------------------------------------#
+
+
+procs package for SAS-like syntax for freqs and means
+
+https://procs.r-sassy.org/index.html
+
+https://cran.r-project.org/web//packages/procs/vignettes/procs-means.html
+
+proc_means function in the procs package
+
+```{r}
+
+proc_means(bccc,
+  var = v(age,disadvantage,affluence),
+  stats = c("n", "mean", "std", "min", "max"),
+  output = NULL,
+  by = NULL,
+  class = age3,
+  options = NULL,
+  titles = NULL
+)
+
+```
+
+
+Here is another way to get similar results with the rstatix package
+
+```{r }
+
+
+# ALSO the rstatix  package (not part of procs)-- like  proc means
+
+# rstatix  package -- like a proc means
+bccc %>% 
+  get_summary_stats(
+    age, disadvantage, affluence, mam5yr,  # columns to calculate for
+    type = "common")                      # summary stats to return 
+
+
+```
+
+
+proc_freq
+
+https://procs.r-sassy.org/reference/proc_freq.html#arguments-1
+https://cran.r-project.org/web//packages/procs/vignettes/procs-freq.html
+
+https://cran.r-project.org/web//packages/procs/vignettes/procs-freq.html
+
+```{r }
+
+# Create sample data
+df <- as.data.frame(bccc, stringsAsFactors = FALSE)
+
+# Assign labels
+labels(df) <- list(age3 = "Age",
+                   ethnicity = "Race/ethnicity",
+                   symptomatic = "SYmptomatic Detection")
+
+# Example #1: One way frequencies without/with weight option.
+table <- proc_freq(df,
+             tables = v(age3, symptomatic),
+             options = NULL,
+             weight = NULL)
+str(table)
+
+
+proc_freq(df,
+             tables = v(age3, symptomatic),
+             options = outcum,
+             weight = fnlwt)
+
+
+# Create a cross-tabulation
+proc_freq(bccc, tables = age3*symptomatic)
+
+# Create a cross-listing
+proc_freq(bccc, tables = age3*symptomatic, options = v(list, nosparse))
+
+
+# Create a cross-listing of FREQS-good for error checking new variables
+proc_freq(bccc, tables = age3*symptomatic, options = v(norow, nocol, nopercent))
+
+# Request two crosstabs
+proc_freq(bccc, tables = v(age3*symptomatic, ethnicity*symptomatic), 
+          options = v(nocol, nopercent) )
+
+```
+
+
+
+
+The freqtables package can be used to check for errors when defining new variables by creating a cross listing of the old and new variable.
+
+Like proc freq / list missing in SAS
+like groups, missing in Stata
+
+```{r }
+
+bccc %>%
+freq_table(age3, age) %>%
+freq_format(recipe = "n", name = NA, digits = NA) %>%
+select(1,2,3) # select the bare minimum for checking purposes.
+
+```
+
+
+
+freqtables package can be used to generate prevalence estiates and 95% CI across levels of a second variable.
+
+For two-way tables, freq_table() returns logit transformed confidence intervals equivalent to those used by Stata. You can also request exact 95% CI as I have done below.
+
+This example below does not always work for some reason
+
+```{r }
+
+# table of row percentages and p-value from Chi-Squared test of independence
+bccc %>%
+freq_table(ethnicity, symptomatic, ci_type = "exact") %>%
+freq_format(
+    recipe = "percent_row (lcl_row - ucl_row)",
+    name   = "rowpct",
+    digits = 0
+) %>%
+freq_test() %>%
+select(row_var:n, rowpct, p_chi2_pearson)
+
+```
+
+
+
+#------------------------------------------------------------------------------#
+Switching over to examples where we have one categorical variable and one 
+continuous variable
+#------------------------------------------------------------------------------#
+
+
+
+#------------------------------------------------------------------------------#
+# summarise is like Stata's tabstat command for calculating means,
+# etc., within levels of a categorical variable
+#------------------------------------------------------------------------------#
+
+Use summarise to recreate Sata tabstat results, but first you have to make you stratification variable as a factor variable. 
+```{r }
+
+# must make the stratification variable from numeric->character->factor
+
+bccc$age3_c <- as.character(bccc$age3) 
+bccc$age3_f <- as.factor(bccc$age3_c) 
+
+# now summarize acroos levels of the factor
+bccc %>%
+  group_by(age3_f) %>%
+  summarise(mean = mean(symptomatic), sd = sd(symptomatic))
+
+```
+
+
+You can also use data.table to recreate Sata tabstat results
+```{r }
+
+# First, you have to create a data.table object
+dt <- as.data.table(bccc)
+
+# convert stratification variale to factor
+dt$age3_c <- as.character(bccc$age3) 
+dt$age3_f <- as.factor(bccc$age3_c) 
+
+
+# Calculate mean within levels of age3
+dt[ , .(symptomatic, age3)][order(symptomatic) , ][ , lapply(.SD, mean),by= age3 ]
+
+# another example:
+# collapse into ethnic groups and calculate multiple attributes of age (mean median min, max)
+dt[order(ethnicity), .
+   (mean = mean(age), 
+       median = median(age), 
+       min = min(age), 
+       max = max(age)), by = ethnicity]
+
+```
+
+
+
+
+## The crosstab function
+
+The crosstab function can be useful for quick tables of counts or percentages
+
+<http://rstudio-pubs-static.s3.amazonaws.com/6975_c4943349b6174f448104a5513fed59a9.html>
+ 
+Copy and paste the function into an R script and save as crosstab.R and run it <http://pcwww.liv.ac.uk/\~william/R/crosstab.r>
+
+```{r}
+
+
+# Load the package from the web
+source("http://pcwww.liv.ac.uk/~william/R/crosstab.r")
+
+names(bccc)
+# Frequency count
+crosstab(bccc, row.vars = "age3", col.vars = "ethnicity", type = "f")
+
+# Column percentages for distributions of risk fctors within ethnic group
+crosstab(bccc, row.vars = c("age3"), col.vars = "ethnicity", type = "c")
+
+# Row percentages for prevalence of ER/PR negative BC within levels of risk fctors
+crosstab(bccc, row.vars = c("age3"), col.vars = "erprneg", type = "f",dec.places = 0)
+crosstab(bccc, row.vars = c("age3"), col.vars = "erprneg", type = "r", addmargins=FALSE, dec.places = 0)
+crosstab(bccc, row.vars = c("age3"), col.vars = "erprneg", type = "r", addmargins=FALSE, percentages = FALSE)
+
+
+```
+
+
+
+
+
+## The crosstable function
+
+The crosstable function can be used to generate near publication quality tables to show how risk factors vary across patient subgroups (showing column percentages) and to show how the prevalence or risk of an outcome varies by risk factors (showing row percentages)
+
+
+Before you can use crosstable you supposedly need to turn your data frame into a tibble (another type of data frame), although I am not sure that it really matters
+
+```{r}
+
+bccc.df <- as.data.frame(bccc) # does not seem to matter whether a tibble or data frame
+str(bccc.df)
+str(bccc)
+
+```
+
+
+The crosstable command:
+Advantages: creates near-publication quality tables whose images can be copied and pasted into documents
+Disadvantages: No ability to create as a word or excel document.
+
+<https://cran.r-project.org/web/packages/crosstable/vignettes/crosstable.html>
+
+<https://danchaltiel.github.io/crosstable/>
+
+<https://cran.r-project.org/web/packages/dplyr/vignettes/dplyr.html>
+
+
+```{r}
+
+# One way tables for all variables
+# <https://www.rdocumentation.org/packages/gtsummary/versions/1.6.3>
+tbl_summary(bccc)
+
+
+# regression model #1
+mod1 <- glm(bccc$erprneg ~ bccc$age + bccc$lackprivate, family = binomial)
+t1   <- tbl_regression(mod1, exponentiate = TRUE)
+t1
+
+# regression model #2
+mod2 <- glm(bccc$erprneg ~ bccc$age + bccc$lackprivate + bccc$maxgrade, family = binomial)
+t2   <-  tbl_regression(mod2,exponentiate = TRUE)
+
+# merge tables 
+tbl_merge_ex1 <-
+  tbl_merge(
+    tbls = list(t1, t2),
+    tab_spanner = c("**erprneg**", "**erprneg**")
+  )
+tbl_merge_ex1
+
+
+#------------------------------------------------------------------------------#
+# Error: Error in argument 'x='. Expecting object of class 'gtsummary'
+# In each of the below examples
+#------------------------------------------------------------------------------#
+
+# Column percentages (e.g., Table 1)
+
+#Table of patterns of risk factors (rows) by race/ethnicity (columns) with column percentages and row totals
+crosstable1 <- crosstable(bccc, c(age3, edu, inc), by=ethnicity, 
+           total="row", showNA = c("always"), unique_numeric=5,  label = T, 
+           percent_pattern="{n} ({p_col})", percent_digits=0) %>%  as_flex_table()
+crosstable1
+
+
+# Row percentages (e.g., Table 2)
+
+# Table of patterns of risk factors by later stage with row percentages and row totals
+crosstable2 <- crosstable(bccc, c(ethnicity, age3, edu, inc), by=laterstage, 
+           total="row", showNA = c("always"), unique_numeric=5, label = F, 
+           percent_pattern="{n} ({p_row})", percent_digits=0) %>%  as_flex_table()
+crosstable2
+
+
+# to summarize variables in your dataset
+crosstab1<-crosstable(bccc, c(age, disadvantage, affluence), showNA = c("no"), funs=c(median, mean, "std dev"=sd)) %>% 
+  as_flex_table(keep_id=TRUE)
+crosstab1
+
+```
+
+
+
+The data.table ecosystem
+
+The data.table environment benefits from its concise syntax; this eliminates the need to memorize an arsenal of function names. In fact, most data manipulating operations are performed between brackets [].
+
+Data.Table in tidyverse
+i: which rows and what (if anything) to do with these rows.
+j: which columns and what (if anything) to do with these columns.
+by: how to group records if j is being summarized.
+
+```{r}
+
+
+# Data must be in a data.table format. This can be accomplished by loading the the data file using the data.table’s fread() function, or by converting the data frame to a data.table via the as.data.table() function.
+
+# Create a data.table
+dt <- as.data.table(tb_bccc)
+
+str(dt)
+
+# selecting colums age3 and ethnicity, subsetting to age3>1 and sorting on age3
+dt[ , .(age3, ethnicity)][age3 > 1, ][order(age3) , ]
+
+# selecting colums age3 and ethnicity, subsetting to age3>1 and sorting on age3 and ethnicity
+dt[ , .(age3, ethnicity)][age3 > 1, ][order(age3, ethnicity) , ]
+
+
+# Calculate mean age within levels of ethnicity
+dt[ , .(age, ethnicity)][order(age) , ][ , lapply(.SD, mean),by= ethnicity ]
+
+# collapse into ethnic groups and calculate median age
+dt[order(ethnicity), .(age = median(age)), 
+   by = ethnicity]
+
+
+
+```
+
+
+

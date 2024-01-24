@@ -1,0 +1,361 @@
+---
+title: "Models"
+author: "Garth Rauscher"
+format: html
+editor: source
+---
+
+R for applied epidemiology and public health: The Epidemiologist R Handbook
+<https://epirhandbook.com/en/index.html>
+
+
+
+```{r}
+
+# read th Stata dataset named bccc.dta (stored in the Data folder) into an R Data Frame
+bccc <- read_dta("data/bccc.dta")
+
+```
+
+
+
+#### FIRST PRIZE FOR CONDUCTIG LINEAR REGRESSIONS !!!!!
+
+#### Ordinary Least Squares (Method #2)
+
+This method takes advantage of the lm_robust function with the "classical" standard error calculation to produce ready made output for ordiary least squares. <https://search.r-project.org/CRAN/refmans/estimatr/html/lm_robust.html> <https://www.rdocumentation.org/packages/estimatr/versions/0.30.6/topics/lm_robust>
+
+```{r }
+
+# Ordinary Least Squares using lm_robust (se_type =  "classical")
+
+library(estimatr)
+
+mod2 <-
+  lm_robust(symptomatic~lackprivate+age,
+  data=bccc,
+  subset=ethnicity==1,
+  weights=fnlwt,
+  clusters=NULL,
+  se_type =  "classical",
+  ci = TRUE,
+  alpha = 0.05,
+  return_vcov = TRUE,
+  try_cholesky = FALSE
+)
+mod2
+
+#str(mod2) # gives you all the information from the model, similar to Stata's ereturn list
+
+```
+
+
+
+
+Modified Ordinary Least Squares with robust standard errors (HC3) for conducting linear risk difference models.
+
+This method uses the **lm_robust** function of the **estimatr** package
+
+<https://www.rdocumentation.org/packages/estimatr/versions/0.30.6/topics/lm_robust>
+
+```{r }
+
+# Ordinary Least Squares with Robust Standard Errors (se_type="HC3")
+
+library(estimatr)
+
+mols1 <-
+  lm_robust(symptomatic~lackprivate + age,
+  data=bccc,
+  subset=ethnicity==1,
+  weights=fnlwt,   # ths example used the fnlwt variable containing weights
+  clusters=NULL,
+  se_type =  "HC3",
+  ci = TRUE,
+  alpha = 0.05,
+  return_vcov = TRUE,
+  try_cholesky = FALSE
+)
+mols1
+
+
+# str(mols1)
+
+```
+
+
+
+
+
+
+
+Standard Poisson Regression
+
+```{r }
+
+# model equation
+fun<-symptomatic~lackprivate+age
+
+# model equation nested in glm function
+fish1 <- glm(fun, 
+             data    = bccc,
+             family  = poisson(link="log"),
+             subset  = ethnicity==1,
+             weights = fnlwt
+)
+fish1
+```
+
+
+
+Extract, calculate and paste together results using 95% *****Wald-based***** CI
+
+Advantage: get all the estimates
+
+Disadvantage: 95% CI not quite as good those from profile-based methods, although
+we do routinely use wald-based 95% CI
+
+
+```{r }
+
+results <- coeftest(fish1)
+
+
+results[,1]  # coefficients
+results[,2]  # standard errors
+
+# create a table with your expnentiated coefficientss, confidence intervals, and p-values
+model_results <- round(cbind((cbind(RR  = exp(results[,1]), 
+                                       LCI = exp(results[,1] + qnorm(0.05/2)*results[,2]),
+                                       UCI = exp(results[,1] - qnorm(0.05/2)*results[,2]))),
+                                       P = results[,4]),3)
+model_results
+
+
+```
+
+
+
+
+
+Extract, calculate and paste together results using 95% *****profile-based CI*****
+The confint function return profile-based intervals.
+
+Advantage: Profile-based 95% CI can be better than wald intervals
+Disadvantage: with this method you only get one at a time
+
+```{r }
+
+# extract point estimate
+point <- exp(fish1$coefficients)[2]
+
+# calculate confidence interval
+ci<-exp(confint(fish1, 'lackprivate', level=0.95))
+
+# paste them together and print
+result<-paste(c(point, ci))
+
+# convert the list to a numeric vector
+v <- as.vector(unlist(result),'numeric')
+options(digits=4)
+print(v)
+
+```
+
+
+Modified Poisson Regression with robust standard errors for conducting  risk ratio models.
+
+This method uses the glm funtion along with coeftest to calculate 95% CI based on a sandwich estimate of the SE.
+Point estimates and confidence bounds are then pasted together to create the results.
+
+```{r }
+
+# model equation
+fun<-symptomatic~lackprivate+age
+
+# model equation nested in glm function
+mod4 <- glm(fun, 
+             data    = bccc,
+             family  = poisson(link="log"),
+             subset  = ethnicity==1,
+             weights = NULL
+)
+mod4
+results <- coeftest(mod4, vcov = sandwich)
+
+# create a table with your exponentiated coefficients, confidence intervals, and p-values
+model_results <- round(cbind(exp(cbind(RR  = results[,1], 
+                                       LCI = results[,1] + qnorm(0.05/2)*results[,2],
+                                       UCI = results[,1] - qnorm(0.05/2)*results[,2])),
+                                       P = results[,4]),3)
+options(digits=4)
+print(model_results)
+
+
+```
+
+
+
+
+
+Logistic Regression
+
+In this example we are subsetting to NH White patients
+
+```{r }
+
+library(lmtest)
+library(sandwich)
+library(tidyverse)
+
+bccc2<-select(bccc,symptomatic,lackprivate,age,lastmam, lastcbe, lastroutine, ethnicity) %>% filter(ethnicity==1, na.rm = TRUE)
+
+# model equation
+fun<-symptomatic~lackprivate+age+lastmam+lastroutine+lastcbe
+
+# model equation nested in glm function
+mod4 <- glm(fun, 
+             data    = bccc2,
+             family  = binomial(link="logit"),
+             subset  = ethnicity==1,
+             #weights = fnlwt
+)
+mod4
+results <- coeftest(mod4)
+
+round(results[,1],3)  # coefficients
+results[,2]  # standard errors
+
+# create a table with your expnentiated coefficientss, confidence intervals, and p-values
+model_results <- round(cbind(exp(cbind(OR  = results[,1], 
+                                       LCI = results[,1] + qnorm(0.05/2)*results[,2],
+                                       UCI = results[,1] - qnorm(0.05/2)*results[,2])),
+                                       P = results[,4]),3)
+options(digits=4)
+model_results
+
+```
+
+
+Let's turn these ORs into something more useful !!!!!
+
+
+Conditional standardizated point estimates for R1, R0 and RD
+
+Conditional standardization estmates the point and interval estimates at a specific combination of covariate values (e.g., and mean or median of all covariates).
+
+Here is an example applying conditional standardization to the logistic regression model results object (mod4). COnditionally standardized at the mean of binary/ordinal variables and at the median of continuous age.
+
+Note: This method does not yield confidence intervals, just point estimates.
+
+```{r }
+
+mod4  # among NHW patients
+
+bccc2<-na.omit(bccc2) # have to remove NAs from the variables being used
+
+lastmam_scal     <- mean(bccc2$lastmam)
+lastcbe_scal     <- mean(bccc2$lastcbe)
+lastroutine_scal <- mean(bccc2$lastroutine)
+age_scal         <- median(bccc2$age)
+
+lastmam_scal
+lastcbe_scal
+lastroutine_scal
+age_scal
+
+
+# predicted probablity of a symotomatic detection for someone without private insurance (index), conditionally (among those who are age 50, NH White, with a recent mammogram, a recent cbe and a recent routine physical)
+
+P1 <-predict(mod4, newdata = data.frame(lackprivate = 1, ethnicity=1,lastmam=lastmam_scal, lastcbe=lastcbe_scal, lastroutine=lastroutine_scal, age = age_scal),type="response")
+
+P1
+
+# predicted probablity of a symotomatic detection for someone with private insurance (referent), conditionally (among those who are age 50, NH White, with a recent mammogram, a recent cbe and a recent routine physical)
+
+P0 <-predict(mod4, newdata = data.frame(lackprivate = 0, ethnicity=1,lastmam=lastmam_scal, lastcbe=lastcbe_scal, lastroutine=lastroutine_scal, age = age_scal),type="response")
+
+
+P0
+
+
+
+# predicted prevalence difference in symptomatic detection comparing someone without (index)  v. with (referent) private insurance, conditionally (among those who are age 50, NH White, with a recent mammogram, a recent cbe and a recent routine physical)
+
+PD = P1-P0
+PR = P1/P0
+OR = (P1/(1-P1))/(P0/(1-P0))
+
+model_results <- round(cbind(P1, P0, PD, PR, OR),3 )
+model_results[1,]
+
+```
+
+
+
+Marginal standardization point estimates, confidence intervals and p-values
+
+An Introduction to ‘margins’
+
+https://cran.r-project.org/web/packages/margins/vignettes/Introduction.html
+https://cran.r-project.org/web/packages/margins/vignettes/Introduction.html#Average_Marginal_Effects_and_Average_Partial_Effects
+
+Calculate the marginal standardized prevalence difference for the association of lackprivate with symptomatic detection among NH WHite patients, adjusted for age, lastmam, lastcbe and lastroutine. NOTE: this is just an example and these results may not be of interest to anyone.
+
+```{r }
+
+
+# create a dataset with variables of interest and among NH White patients only for this example, and remove observations with missing values.
+
+bccc2<-select(bccc,symptomatic,lackprivate,age,lastmam, lastcbe, lastroutine, ethnicity) %>% filter(ethnicity==1, na.rm = TRUE)
+
+# model equation
+fun<-symptomatic~lackprivate+age+lastmam+lastroutine+lastcbe
+
+# logistic regression
+# model equation nested in glm function
+mod5 <- glm(fun, 
+             data    = bccc2,
+             family  = binomial(link="logit"),
+             subset  = ethnicity==1,
+             #weights = fnlwt
+)
+mod5
+
+margins(mod5) # point estimates
+summary(margins(mod5, variables = "lackprivate")) # RD (95% CI)
+
+```
+
+
+
+Using the at Argument
+
+The at argument allows you to calculate marginal effects at representative cases (sometimes “MERs”) or marginal effects at means - or any other statistic - (sometimes “MEMs”), which are marginal effects for particularly interesting (sets of) observations in a dataset.
+
+This differs from marginal effects on subsets of the original data in that it operates on a modified set of the full dataset wherein particular variables have been replaced by specified values. This is helpful because it allows for calculation of marginal effects for counterfactual datasets (e.g., what if all women were instead men? what if all democracies were instead autocracies? what if all foreign cars were instead domestic?).
+
+
+```{r }
+mod5
+
+# RD due to lackprivate across different values of age (adjusted for the other covariates)
+summary(margins(mod5,variables = "lackprivate", at = list(age=50:59)))
+        
+# RD due to lackprivate across different values of age (adjusted for the other covariates)
+summary(margins(mod5,variables = "lackprivate", at = list(age=seq(20, 80, by=10))))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,45 @@
+---
+title: "Graphs"
+author: "Garth Rauscher"
+format: html
+editor: source
+---
+
+<https://ggplot2.tidyverse.org/>
+
+R for applied epidemiology and public health: The Epidemiologist R Handbook
+<https://epirhandbook.com/en/index.html>
+
+
+```{r}
+
+library(esquisse)
+
+```
+
+```{r}
+
+esquisser()
+
+```
+
+```{r}
+
+?ggplot2
+
+ggplot(bccc) +
+  aes(x = age, y = disadvantage, colour =ethnicity) +
+  geom_point(shape = "circle", size = 1) +
+  labs(
+    x = "Age (years)",
+    y = "Disadvantage score",
+    title = "Disadvantage score by age",
+    subtitle = "BCCC (2005-2008) N=989",
+    caption = "There were 987 patients with data on disadvantage"
+  ) +
+  theme_minimal() +
+  xlim(20, 80) +
+  ylim(-3, 3)
+
+
+```
